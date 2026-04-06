@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq'; 
+import { BullModule } from '@nestjs/bullmq';
 import { MatchController } from './match.controller';
 import { MatchService } from './match.service';
 
 @Module({
   imports: [
     BullModule.registerQueue({
-      name: 'resume-queue', 
+      name: 'resume-queue',
     }),
   ],
   controllers: [MatchController],
