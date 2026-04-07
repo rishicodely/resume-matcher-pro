@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { MatchModule } from './match/match.module';
+import { RedisSubscriber } from './redis.subscriber';
 
 @Module({
   imports: [
@@ -12,5 +13,6 @@ import { MatchModule } from './match/match.module';
     }),
     MatchModule,
   ],
+  providers: [RedisSubscriber],
 })
 export class AppModule {}
