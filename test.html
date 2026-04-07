@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <title>WebSocket Test</title>
+  </head>
+  <body>
+    <h2>Listening for job updates...</h2>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      const socket = io("http://localhost:3000");
+
+      socket.on("matchCompleted", (data) => {
+        console.log("🔥 Job completed:", data);
+        alert(`Job ${data.jobId} completed!`);
+      });
+    </script>
+  </body>
+</html>

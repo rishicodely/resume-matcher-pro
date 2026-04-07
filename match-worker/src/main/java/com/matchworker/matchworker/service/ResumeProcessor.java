@@ -2,6 +2,7 @@ package com.matchworker.matchworker.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,9 @@ public class ResumeProcessor {
 
     @Autowired
     private MatchResultRepository matchResultRepository;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
     @Scheduled(fixedDelay = 1000)
     public void consumeJob() {
@@ -86,11 +90,19 @@ public class ResumeProcessor {
             result.setFeedback("Basic keyword match completed");
 
             matchResultRepository.save(result);
+            notifyCompletion(jobId, userId);
 
             System.out.println("✅ Saved to DB");
         } catch (Exception e) {
             System.out.println("Failed to process job: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    public void notifyCompletion(String jobId, String userId) {
+        String message = String.format("{\"jobId\":\"%s\", \"userId\":\"%s\", \"status\":\"COMPLETED\"}", jobId,
+                userId);
+
+        stringRedisTemplate.convertAndSend("resume_status_updates", message);
     }
 }

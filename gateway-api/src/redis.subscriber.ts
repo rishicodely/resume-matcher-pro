@@ -1,5 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import Redis from 'ioredis';
+import { MatchGateway } from './match/match.gateway';
 
 type ResumeEvent = {
   jobId: string;
@@ -10,6 +11,7 @@ type ResumeEvent = {
 @Injectable()
 export class RedisSubscriber implements OnModuleInit {
   private subscriber = new Redis();
+  constructor(private readonly matchGateway: MatchGateway) {}
 
   async onModuleInit() {
     await this.subscriber.subscribe('resume_status_updates');
@@ -19,7 +21,6 @@ export class RedisSubscriber implements OnModuleInit {
 
       try {
         const parsed = JSON.parse(message) as unknown;
-
         if (
           typeof parsed === 'object' &&
           parsed !== null &&
@@ -28,7 +29,7 @@ export class RedisSubscriber implements OnModuleInit {
           'status' in parsed
         ) {
           const data = parsed as ResumeEvent;
-
+          this.matchGateway.notifyCompletion(data);
           console.log(`✅ Job ${data.jobId} completed for user ${data.userId}`);
         } else {
           console.warn('⚠️ Invalid message format:', parsed);
