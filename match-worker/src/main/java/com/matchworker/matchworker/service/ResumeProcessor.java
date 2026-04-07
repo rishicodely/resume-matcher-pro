@@ -6,6 +6,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.matchworker.matchworker.repository.MatchResultRepository;
+import com.matchworker.matchworker.entity.MatchResult;
 
 @Service
 public class ResumeProcessor {
@@ -15,6 +17,9 @@ public class ResumeProcessor {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private MatchResultRepository matchResultRepository;
 
     @Scheduled(fixedDelay = 1000)
     public void consumeJob() {
@@ -37,6 +42,18 @@ public class ResumeProcessor {
         }
     }
 
+    private double calculateScore(String text) {
+        String[] keywords = { "Java", "Python", "React", "Kafka", "Docker" };
+        double score = 0.0;
+
+        for (String word : keywords) {
+            if (text.toLowerCase().contains(word.toLowerCase())) {
+                score += 20.0;
+            }
+        }
+        return score;
+    }
+
     private void processMatch(String data) {
         try {
 
@@ -50,14 +67,8 @@ public class ResumeProcessor {
             String jobId = root.get("jobId").asText();
             String jd = root.get("jd").asText();
 
-            if (jobId == null || jobId.isEmpty()) {
-                System.out.println("⚠️ jobId is missing in job data");
-                return;
-            }
-            if (jd == null || jd.isEmpty()) {
-                System.out.println("⚠️ jd is missing in job data");
-                return;
-            }
+            String userId = root.get("userId").asText();
+            double score = calculateScore(jd);
 
             System.out.println("Processing jobId: " + jobId);
             System.out.println("Processing jd: " + jd);
@@ -67,6 +78,16 @@ public class ResumeProcessor {
             } else {
                 System.out.println("Match score: 50");
             }
+
+            MatchResult result = new MatchResult();
+            result.setJobId(jobId);
+            result.setUserId(userId);
+            result.setMatchScore(score);
+            result.setFeedback("Basic keyword match completed");
+
+            matchResultRepository.save(result);
+
+            System.out.println("✅ Saved to DB");
         } catch (Exception e) {
             System.out.println("Failed to process job: " + e.getMessage());
             e.printStackTrace();
