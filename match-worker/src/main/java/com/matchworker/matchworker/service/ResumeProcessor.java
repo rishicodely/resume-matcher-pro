@@ -140,7 +140,28 @@ public class ResumeProcessor {
         return Math.min(score, 100.0);
     }
 
+    private String generateAgenticFeedback(double finalScore, double keywordScore, double semanticPercent) {
+        StringBuilder feedback = new StringBuilder();
+
+        if (finalScore > 85) {
+            feedback.append("Top-tier match. ");
+        } else if (keywordScore > 80 && semanticPercent < 60) {
+            feedback.append("Candidate has the right buzzwords, but the professional context (Semantic Fit) is weak. ");
+        } else if (semanticPercent > 80 && keywordScore < 50) {
+            feedback.append(
+                    "Strong conceptual fit, but the resume is missing specific technical keywords found in the JD. ");
+        }
+        if (finalScore < 70) {
+            feedback.append(
+                    "Advice: Bridge the gap by highlighting more experience with Distributed Systems or Cloud infrastructure.");
+        }
+
+        return feedback.toString();
+    }
+
     private void processMatch(String data) {
+        String jobId = null;
+        String userId = null;
         try {
 
             if (data == null || data.isEmpty()) {
@@ -150,17 +171,16 @@ public class ResumeProcessor {
 
             var root = objectMapper.readTree(data);
 
-            String jobId = root.get("jobId").asText();
+            jobId = root.get("jobId").asText();
             String jd = root.get("jd").asText();
-            String userId = root.get("userId").asText();
+            userId = root.get("userId").asText();
 
-            String resumePath = root.get("resumeUrl").asText();
+            String resumePath = "../uploads/" + new java.io.File(root.get("resumeUrl").asText()).getName();
             String resumeText = extractFromPdf(resumePath);
             System.out.println("Resume length: " + resumeText.length());
 
             if (resumeText.isEmpty()) {
-                System.out.println("⚠️ Failed to parse resume");
-                return;
+                throw new RuntimeException("Resume parsing failed");
             }
 
             float[] resumeVector = getEmbedding(resumeText);
@@ -182,18 +202,12 @@ public class ResumeProcessor {
 
             double finalScore = (0.7 * semanticPercent) + (0.3 * keywordScore);
 
-            String feedback;
-            if (finalScore > 80) {
-                feedback = "Strong match: candidate aligns well with required skills";
-            } else if (finalScore > 50) {
-                feedback = "Moderate match: candidate meets several requirements";
-            } else {
-                feedback = "Low match: candidate lacks key skills";
-            }
+            String feedback = generateAgenticFeedback(finalScore, keywordScore, semanticPercent);
 
             MatchResult result = new MatchResult();
             result.setJobId(jobId);
             result.setUserId(userId);
+            result.setStatus(MatchResult.MatchStatus.SUCCESS);
             result.setResumeEmbedding(resumeVector);
             result.setJdEmbedding(jdVector);
             result.setMatchScore(finalScore);
@@ -201,19 +215,36 @@ public class ResumeProcessor {
 
             matchResultRepository.save(result);
 
-            notifyCompletion(jobId, userId);
+            notifyCompletion(jobId, userId, finalScore, feedback);
 
             System.out.println("✅ Saved to DB");
 
         } catch (Exception e) {
-            System.out.println("Failed to process job: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("CRITICAL FAILURE: " + e.getMessage());
+
+            MatchResult errorResult = new MatchResult();
+            errorResult.setJobId(jobId);
+            errorResult.setUserId(userId);
+            errorResult.setStatus(MatchResult.MatchStatus.FAILED);
+            errorResult.setFeedback("Error: PDF processing failed. Please ensure the file is not corrupted.");
+            matchResultRepository.save(errorResult);
+
+            notifyFailure(jobId, userId, "FAILED");
         }
     }
 
-    public void notifyCompletion(String jobId, String userId) {
-        String message = String.format("{\"jobId\":\"%s\", \"userId\":\"%s\", \"status\":\"COMPLETED\"}", jobId,
-                userId);
+    public void notifyCompletion(String jobId, String userId, double score, String feedback) {
+        String message = String.format(
+                "{\"jobId\":\"%s\", \"userId\":\"%s\", \"status\":\"COMPLETED\", \"score\":%.2f, \"feedback\":\"%s\"}",
+                jobId, userId, score, feedback.replace("\"", "'"));
+
+        stringRedisTemplate.convertAndSend("resume_status_updates", message);
+    }
+
+    public void notifyFailure(String jobId, String userId, String status) {
+        String message = String.format(
+                "{\"jobId\":\"%s\", \"userId\":\"%s\", \"status\":\"%s\"}",
+                jobId, userId, status);
 
         stringRedisTemplate.convertAndSend("resume_status_updates", message);
     }

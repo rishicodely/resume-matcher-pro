@@ -17,6 +17,14 @@ public class MatchResult {
     private String userId;
     private Double matchScore;
 
+    @Enumerated(EnumType.STRING)
+    private MatchStatus status;
+
+    public enum MatchStatus {
+        SUCCESS,
+        FAILED
+    }
+
     @Column(columnDefinition = "TEXT")
     private String feedback;
 
