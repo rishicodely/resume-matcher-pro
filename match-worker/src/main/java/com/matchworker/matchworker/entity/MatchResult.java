@@ -20,5 +20,11 @@ public class MatchResult {
     @Column(columnDefinition = "TEXT")
     private String feedback;
 
+    @Column(name = "resume_embedding", columnDefinition = "vector(384)")
+    private float[] resumeEmbedding;
+
+    @Column(name = "jd_embedding", columnDefinition = "vector(384)")
+    private float[] jdEmbedding;
+
     private LocalDateTime createdAt = LocalDateTime.now();
 }

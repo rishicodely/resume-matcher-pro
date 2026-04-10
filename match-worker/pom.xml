@@ -63,6 +63,24 @@
 		<artifactId>postgresql</artifactId>
 	</dependency>
 
+	<dependency>
+		<groupId>org.apache.tika</groupId>
+		<artifactId>tika-core</artifactId>
+		<version>2.9.1</version>
+	</dependency>
+
+	<dependency>
+		<groupId>org.apache.tika</groupId>
+		<artifactId>tika-parsers-standard-package</artifactId>
+		<version>2.9.1</version>
+	</dependency>
+
+	<dependency>
+		<groupId>dev.langchain4j</groupId>
+		<artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
+		<version>0.30.0</version>
+	</dependency>
+
 </dependencies>
 
 	<build>
