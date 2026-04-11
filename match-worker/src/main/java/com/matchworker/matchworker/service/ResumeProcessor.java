@@ -34,6 +34,9 @@ public class ResumeProcessor {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    private GroqService groq;
+
     private final EmbeddingModel embeddingModel = new AllMiniLmL6V2EmbeddingModelFactory().create();
 
     private final Map<String, float[]> jdCache = new ConcurrentHashMap<>();
@@ -202,7 +205,15 @@ public class ResumeProcessor {
 
             double finalScore = (0.7 * semanticPercent) + (0.3 * keywordScore);
 
-            String feedback = generateAgenticFeedback(finalScore, keywordScore, semanticPercent);
+            String baseFeedback = generateAgenticFeedback(finalScore, keywordScore, semanticPercent);
+            String llmFeedback = groq.generateFeedback(resumeText, jd, finalScore);
+
+            String finalFeedback = baseFeedback + "\n\n" + llmFeedback;
+
+            String safeFeedback = finalFeedback
+                    .replace("\n", " ")
+                    .replace("\r", " ")
+                    .replace("\"", "'");
 
             MatchResult result = new MatchResult();
             result.setJobId(jobId);
@@ -211,11 +222,11 @@ public class ResumeProcessor {
             result.setResumeEmbedding(resumeVector);
             result.setJdEmbedding(jdVector);
             result.setMatchScore(finalScore);
-            result.setFeedback(feedback);
+            result.setFeedback(safeFeedback);
 
             matchResultRepository.save(result);
 
-            notifyCompletion(jobId, userId, finalScore, feedback);
+            notifyCompletion(jobId, userId, finalScore, safeFeedback);
 
             System.out.println("✅ Saved to DB");
 
@@ -234,11 +245,21 @@ public class ResumeProcessor {
     }
 
     public void notifyCompletion(String jobId, String userId, double score, String feedback) {
-        String message = String.format(
-                "{\"jobId\":\"%s\", \"userId\":\"%s\", \"status\":\"COMPLETED\", \"score\":%.2f, \"feedback\":\"%s\"}",
-                jobId, userId, score, feedback.replace("\"", "'"));
+        try {
+            Map<String, Object> payload = Map.of(
+                    "jobId", jobId,
+                    "userId", userId,
+                    "status", "COMPLETED",
+                    "score", score,
+                    "feedback", feedback);
 
-        stringRedisTemplate.convertAndSend("resume_status_updates", message);
+            String message = objectMapper.writeValueAsString(payload);
+
+            stringRedisTemplate.convertAndSend("resume_status_updates", message);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void notifyFailure(String jobId, String userId, String status) {
