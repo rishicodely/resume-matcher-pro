@@ -178,7 +178,7 @@ public class ResumeProcessor {
             String jd = root.get("jd").asText();
             userId = root.get("userId").asText();
 
-            String resumePath = "../uploads/" + new java.io.File(root.get("resumeUrl").asText()).getName();
+            String resumePath = root.get("resumeUrl").asText();
             String resumeText = extractFromPdf(resumePath);
             System.out.println("Resume length: " + resumeText.length());
 

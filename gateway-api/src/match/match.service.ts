@@ -7,6 +7,12 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { Pool, QueryResult } from 'pg';
 
+import { CreateMatchDto } from './create-match.dto';
+import { randomUUID } from 'crypto';
+
+import * as dotenv from 'dotenv';
+dotenv.config();
+
 type MatchHistory = {
   job_id: string;
   score: number;
@@ -20,21 +26,27 @@ export class MatchService {
   constructor(
     @InjectQueue('resume-queue') private readonly resumeQueue: Queue,
   ) {
+    if (!process.env.DB_USER) {
+      throw new Error('DB config missing');
+    }
     this.pool = new Pool({
-      user: 'myuser',
-      host: 'localhost',
-      database: 'mydatabase',
-      password: 'mypassword',
-      port: 5432,
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: Number(process.env.DB_PORT),
     });
   }
 
-  async processResume(resumeData: any) {
-    const jobId = `job_${Date.now()}`;
+  async processResume(resumeData: CreateMatchDto) {
+    const jobId = `job_${randomUUID()}`;
+    console.log('📦 Queuing job:', jobId, resumeData.resumeUrl);
 
     await this.resumeQueue.add('analyze-resume', {
       jobId,
-      ...resumeData,
+      resumeUrl: resumeData.resumeUrl,
+      jd: resumeData.jd,
+      userId: resumeData.userId,
     });
 
     return { jobId, status: 'QUEUED' };
