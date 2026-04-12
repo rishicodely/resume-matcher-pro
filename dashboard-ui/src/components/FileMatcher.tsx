@@ -1,12 +1,19 @@
 import { useState } from "react";
-import { CheckCircle, Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { createMatchJob } from "../services/api";
 import { useMatchSocket } from "../hooks/useMatchSocket";
+import { getHistory } from "../services/api";
 
 type MatchResult = {
   jobId: string;
   score: number;
   feedback: string;
+};
+
+type HistoryItem = {
+  job_id: string;
+  score: number;
+  created_at: string;
 };
 
 export const FileMatcher = () => {
@@ -17,10 +24,12 @@ export const FileMatcher = () => {
   >("IDLE");
   const [jobId, setJobId] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useMatchSocket(jobId, (data) => {
     setResult(data);
     setStatus("COMPLETED");
+    getHistory("user123").then(setHistory);
   });
 
   const uploadToS3 = async (file: File) => {
@@ -80,15 +89,20 @@ export const FileMatcher = () => {
       const data = JSON.parse(text);
 
       return (
-        <div className="space-y-4">
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
           {data.strengths && (
             <div>
-              <p className="text-green-400 text-xs uppercase tracking-wider mb-1">
+              <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-[0.15em] mb-2 px-1">
                 strengths.exe
               </p>
-              <ul className="list-disc pl-4 space-y-1 text-slate-300">
+              <ul className="space-y-1.5">
                 {data.strengths.map((s: string, i: number) => (
-                  <li key={i}>{s}</li>
+                  <li
+                    key={i}
+                    className="text-slate-300 text-sm flex items-start gap-2 bg-emerald-500/5 p-2 rounded-md border border-emerald-500/10"
+                  >
+                    <span className="text-emerald-500 mt-1">▹</span> {s}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -96,25 +110,35 @@ export const FileMatcher = () => {
 
           {data.weaknesses && (
             <div>
-              <p className="text-red-400 text-xs uppercase tracking-wider mb-1">
+              <p className="text-rose-400 text-[10px] font-bold uppercase tracking-[0.15em] mb-2 px-1">
                 weaknesses.log
               </p>
-              <ul className="list-disc pl-4 space-y-1 text-slate-300">
+              <ul className="space-y-1.5">
                 {data.weaknesses.map((w: string, i: number) => (
-                  <li key={i}>{w}</li>
+                  <li
+                    key={i}
+                    className="text-slate-300 text-sm flex items-start gap-2 bg-rose-500/5 p-2 rounded-md border border-rose-500/10"
+                  >
+                    <span className="text-rose-500 mt-1">▹</span> {w}
+                  </li>
                 ))}
               </ul>
             </div>
           )}
 
           {data.recommendations && (
-            <div className="bg-slate-800/40 p-3 rounded-lg border border-slate-700">
-              <p className="text-blue-400 text-xs uppercase tracking-wider mb-1">
+            <div className="bg-indigo-500/10 p-4 rounded-xl border border-indigo-500/20 shadow-inner">
+              <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-[0.15em] mb-2">
                 recommendations.md
               </p>
-              <ul className="list-disc pl-4 space-y-1 text-slate-300">
+              <ul className="space-y-2 text-slate-300 text-sm">
                 {data.recommendations.map((r: string, i: number) => (
-                  <li key={i}>{r}</li>
+                  <li
+                    key={i}
+                    className="flex gap-2 underline-offset-4 decoration-indigo-500/30"
+                  >
+                    <span className="text-indigo-400 font-bold">•</span> {r}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -122,91 +146,189 @@ export const FileMatcher = () => {
         </div>
       );
     } catch {
-      return <p className="text-slate-400">{text}</p>;
+      return <p className="text-slate-400 italic">{text}</p>;
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f] text-white p-6">
-      {/* Glow background */}{" "}
-      <div className="absolute w-[500px] h-[500px] bg-purple-600/20 blur-3xl rounded-full -z-10 top-20" />
-      <div className="w-full max-w-xl backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl shadow-2xl p-6 space-y-6">
-        <h2 className="text-2xl font-semibold text-center tracking-tight">
-          AI Resume Matcher<span className="text-purple-400"></span>
-        </h2>
+    <div className="min-h-screen flex items-start justify-center gap-8 bg-[#050508] text-slate-200 p-8 font-sans">
+      {/* Background Ambience */}
+      <div className="fixed inset-0 overflow-hidden -z-10">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
+      </div>
 
-        {/* Job Description */}
-        <div>
-          <label className="text-xs text-slate-400">Job Description</label>
-          <textarea
-            className="w-full mt-1 p-3 bg-black/40 border border-white/10 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none text-sm text-slate-200"
-            rows={5}
-            placeholder="paste something interesting..."
-            onChange={(e) => setJd(e.target.value)}
-          />
+      {/* History Sidebar */}
+      <aside className="w-72 hidden xl:block sticky top-8">
+        <div className="bg-white/[0.02] border border-white/10 rounded-2xl p-5 backdrop-blur-md h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+          <div className="flex items-center gap-2 mb-6 px-1">
+            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+            <h3 className="text-[10px] uppercase font-bold tracking-widest text-slate-500">
+              Match History
+            </h3>
+          </div>
+          <div className="space-y-3 overflow-y-auto custom-scrollbar pr-2">
+            {history.map((h, i) => (
+              <div
+                key={i}
+                className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-purple-500/40 transition-all group"
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-purple-400 font-mono font-bold">
+                    {Math.round(h.score)}%
+                  </span>
+                  <span className="text-[10px] text-slate-600 uppercase font-medium">
+                    {new Date(h.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-purple-500/50"
+                    style={{ width: `${h.score}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Card */}
+      <div className="w-full max-w-2xl bg-white/[0.03] border border-white/10 rounded-[2rem] shadow-2xl p-8 backdrop-blur-2xl space-y-8 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
+
+        <header className="space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight text-white">
+            Resume <span className="text-purple-500 italic">Intelligence</span>
+          </h2>
+          <p className="text-slate-500 text-sm">
+            Align your expertise with the modern job market.
+          </p>
+        </header>
+
+        <div className="grid gap-6">
+          {/* Job Description */}
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500 ml-1">
+              Job Description
+            </label>
+            <textarea
+              className="w-full p-4 bg-black/40 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500/50 outline-none text-sm text-slate-300 placeholder:text-slate-700 transition-all resize-none"
+              rows={6}
+              placeholder="Paste the target job description here..."
+              onChange={(e) => setJd(e.target.value)}
+            />
+          </div>
+
+          {/* File Upload */}
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-slate-500 ml-1">
+              Resume Document
+            </label>
+            <div className="relative group">
+              <input
+                type="file"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                onChange={(e) => setFile(e.target.files![0])}
+              />
+              <div className="w-full p-4 bg-black/20 border-2 border-dashed border-white/10 rounded-xl text-center group-hover:border-purple-500/50 transition-all flex items-center justify-center gap-3">
+                <div className="p-2 bg-white/5 rounded-lg group-hover:bg-purple-500/10 transition-colors">
+                  <FileTextIcon className="w-5 h-5 text-slate-400 group-hover:text-purple-400" />
+                </div>
+                <span className="text-sm text-slate-400 group-hover:text-slate-200 truncate max-w-[250px]">
+                  {file ? file.name : "Select your PDF or Word file"}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* File Upload */}
-        <div>
-          <label className="text-xs text-slate-400">Resume</label>
-          <input
-            type="file"
-            className="w-full mt-1 text-sm text-slate-400 file:bg-purple-500/20 file:text-purple-300 file:border-0 file:px-4 file:py-2 file:rounded-lg hover:file:bg-purple-500/30"
-            onChange={(e) => setFile(e.target.files![0])}
-          />
-        </div>
-
-        {/* Button */}
+        {/* Action Button */}
         <button
           onClick={handleUpload}
-          disabled={status === "UPLOADING" || status === "PROCESSING"}
-          className="w-full bg-purple-600/80 hover:bg-purple-600 text-white py-2.5 rounded-lg transition flex items-center justify-center gap-2 shadow-lg shadow-purple-900/30"
+          disabled={
+            status === "UPLOADING" || status === "PROCESSING" || !file || !jd
+          }
+          className="w-full bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-3 shadow-[0_0_30px_-10px_rgba(147,51,234,0.5)] active:scale-[0.98]"
         >
-          {status === "PROCESSING" ? (
+          {status === "PROCESSING" || status === "UPLOADING" ? (
             <>
-              <Loader2 className="animate-spin w-4 h-4" />
-              cooking...
+              <Loader2 className="animate-spin w-5 h-5" />
+              <span className="uppercase tracking-widest text-xs">
+                Processing Neural Match...
+              </span>
             </>
           ) : (
-            "run it"
+            <>
+              <span className="uppercase tracking-widest text-xs">
+                Analyze Compatibility
+              </span>
+            </>
           )}
         </button>
 
-        {/* Status */}
-        <div className="min-h-[50px] flex items-center justify-center">
+        {/* Status & Results */}
+        <div className="pt-4 border-t border-white/5">
           {status === "COMPLETED" && result && (
-            <div className="flex flex-col items-center w-full">
-              <div className="flex items-center gap-2 text-green-400">
-                <CheckCircle className="w-5 h-5" />
-                <span className="text-lg font-bold">
-                  {Math.round(result.score)}%
-                </span>
+            <div className="space-y-8">
+              <div className="flex flex-col items-center">
+                <div className="relative flex items-center justify-center mb-4">
+                  <div className="absolute inset-0 bg-purple-500/20 blur-2xl rounded-full" />
+                  <span className="text-5xl font-black text-white relative">
+                    {Math.round(result.score)}
+                    <span className="text-purple-500 text-2xl">%</span>
+                  </span>
+                </div>
+
+                <div className="w-full max-w-sm bg-white/5 h-1.5 rounded-full overflow-hidden shadow-inner">
+                  <div
+                    className="bg-gradient-to-r from-purple-600 via-fuchsia-500 to-emerald-400 h-full transition-all duration-1000 ease-out"
+                    style={{ width: `${result.score}%` }}
+                  />
+                </div>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-4 font-bold">
+                  Matching Index
+                </p>
               </div>
 
-              <div className="w-full bg-white/10 h-2 rounded-full mt-2 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-green-400 to-purple-500 h-full transition-all duration-1000"
-                  style={{ width: `${result.score}%` }}
-                />
-              </div>
+              {result.feedback && (
+                <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 ring-1 ring-white/10">
+                  {renderFeedback(result.feedback)}
+                </div>
+              )}
             </div>
           )}
 
           {status === "FAILED" && (
-            <div className="flex items-center gap-2 text-red-400">
+            <div className="flex items-center justify-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 animate-bounce">
               <AlertCircle className="w-5 h-5" />
-              something broke.
+              <span className="text-sm font-medium">
+                Analysis failed. Please check your inputs.
+              </span>
             </div>
           )}
         </div>
-
-        {/* Feedback */}
-        {result?.feedback && (
-          <div className="bg-white/5 border border-white/10 rounded-xl p-5 text-sm backdrop-blur-md">
-            {renderFeedback(result.feedback)}
-          </div>
-        )}
       </div>
     </div>
   );
 };
+
+// Simple Icon for the upload state
+const FileTextIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <line x1="10" y1="9" x2="8" y2="9" />
+  </svg>
+);

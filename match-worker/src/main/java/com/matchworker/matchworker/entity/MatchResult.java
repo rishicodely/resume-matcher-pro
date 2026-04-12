@@ -15,7 +15,7 @@ public class MatchResult {
 
     private String jobId;
     private String userId;
-    private Double matchScore;
+    private Double score;
 
     @Enumerated(EnumType.STRING)
     private MatchStatus status;

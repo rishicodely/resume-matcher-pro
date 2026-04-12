@@ -218,7 +218,7 @@ public class ResumeProcessor {
             result.setStatus(MatchResult.MatchStatus.SUCCESS);
             result.setResumeEmbedding(resumeVector);
             result.setJdEmbedding(jdVector);
-            result.setMatchScore(finalScore);
+            result.setScore(finalScore);
             result.setFeedback(safeFeedback);
 
             matchResultRepository.save(result);
