@@ -210,10 +210,7 @@ public class ResumeProcessor {
 
             String finalFeedback = baseFeedback + "\n\n" + llmFeedback;
 
-            String safeFeedback = finalFeedback
-                    .replace("\n", " ")
-                    .replace("\r", " ")
-                    .replace("\"", "'");
+            String safeFeedback = llmFeedback;
 
             MatchResult result = new MatchResult();
             result.setJobId(jobId);
