@@ -23,6 +23,36 @@ export const FileMatcher = () => {
     setStatus("COMPLETED");
   });
 
+  const uploadToS3 = async (file: File) => {
+    const filename = `${Date.now()}-${file.name}`;
+
+    const res = await fetch(
+      `${import.meta.env.VITE_API_URL}/match/upload-url`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filename,
+          type: file.type,
+        }),
+      },
+    );
+
+    const { url, fileUrl } = await res.json();
+
+    await fetch(url, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type,
+      },
+    });
+
+    return fileUrl;
+  };
+
   const handleUpload = async () => {
     if (!file || !jd) return;
 
@@ -31,7 +61,13 @@ export const FileMatcher = () => {
     setStatus("UPLOADING");
 
     try {
-      const data = await createMatchJob(file, jd);
+      const fileUrl = await uploadToS3(file);
+
+      const data = await createMatchJob({
+        resumeUrl: fileUrl,
+        jd,
+        userId: "user123",
+      });
       setJobId(data.jobId);
       setStatus("PROCESSING");
     } catch {
