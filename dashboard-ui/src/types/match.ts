@@ -1,5 +1,9 @@
 export type MatchResult = {
   jobId: string;
   score: number;
-  feedback: string;
+  feedback: {
+    strengths: string[];
+    weaknesses: string[];
+    recommendations: string[];
+  };
 };

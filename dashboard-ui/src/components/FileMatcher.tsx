@@ -7,13 +7,18 @@ import { getHistory } from "../services/api";
 type MatchResult = {
   jobId: string;
   score: number;
-  feedback: string;
+  feedback: {
+    strengths: string[];
+    weaknesses: string[];
+    recommendations: string[];
+  };
 };
 
 type HistoryItem = {
   job_id: string;
   score: number;
   created_at: string;
+  feedback: MatchResult["feedback"];
 };
 
 export const FileMatcher = () => {
@@ -84,70 +89,51 @@ export const FileMatcher = () => {
     }
   };
 
-  const renderFeedback = (text: string) => {
-    try {
-      const data = JSON.parse(text);
+  const renderFeedback = (data: MatchResult["feedback"]) => {
+    if (!data) return null;
 
-      return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
-          {data.strengths && (
-            <div>
-              <p className="text-emerald-400 text-[10px] font-bold uppercase tracking-[0.15em] mb-2 px-1">
-                strengths.exe
-              </p>
-              <ul className="space-y-1.5">
-                {data.strengths.map((s: string, i: number) => (
-                  <li
-                    key={i}
-                    className="text-slate-300 text-sm flex items-start gap-2 bg-emerald-500/5 p-2 rounded-md border border-emerald-500/10"
-                  >
-                    <span className="text-emerald-500 mt-1">▹</span> {s}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
+        {data.strengths?.length > 0 && (
+          <div>
+            <p className="text-emerald-400 text-[10px] font-bold uppercase mb-2">
+              strengths.exe
+            </p>
+            <ul>
+              {data.strengths.map((s, i) => (
+                <li key={i}>▹ {s}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-          {data.weaknesses && (
-            <div>
-              <p className="text-rose-400 text-[10px] font-bold uppercase tracking-[0.15em] mb-2 px-1">
-                weaknesses.log
-              </p>
-              <ul className="space-y-1.5">
-                {data.weaknesses.map((w: string, i: number) => (
-                  <li
-                    key={i}
-                    className="text-slate-300 text-sm flex items-start gap-2 bg-rose-500/5 p-2 rounded-md border border-rose-500/10"
-                  >
-                    <span className="text-rose-500 mt-1">▹</span> {w}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+        {data.weaknesses?.length > 0 && (
+          <div>
+            <p className="text-rose-400 text-[10px] font-bold uppercase mb-2">
+              weaknesses.log
+            </p>
+            <ul>
+              {data.weaknesses.map((w, i) => (
+                <li key={i}>▹ {w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-          {data.recommendations && (
-            <div className="bg-indigo-500/10 p-4 rounded-xl border border-indigo-500/20 shadow-inner">
-              <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-[0.15em] mb-2">
-                recommendations.md
-              </p>
-              <ul className="space-y-2 text-slate-300 text-sm">
-                {data.recommendations.map((r: string, i: number) => (
-                  <li
-                    key={i}
-                    className="flex gap-2 underline-offset-4 decoration-indigo-500/30"
-                  >
-                    <span className="text-indigo-400 font-bold">•</span> {r}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      );
-    } catch {
-      return <p className="text-slate-400 italic">{text}</p>;
-    }
+        {data.recommendations?.length > 0 && (
+          <div>
+            <p className="text-indigo-300 text-[10px] font-bold uppercase mb-2">
+              recommendations.md
+            </p>
+            <ul>
+              {data.recommendations.map((r, i) => (
+                <li key={i}>• {r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -171,7 +157,15 @@ export const FileMatcher = () => {
             {history.map((h, i) => (
               <div
                 key={i}
-                className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:border-purple-500/40 transition-all group"
+                onClick={() => {
+                  setResult({
+                    jobId: h.job_id,
+                    score: h.score,
+                    feedback: h.feedback,
+                  });
+                  setStatus("COMPLETED");
+                }}
+                className="p-3 rounded-xl cursor-pointer hover:border-purple-500/40 transition-all group"
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-purple-400 font-mono font-bold">

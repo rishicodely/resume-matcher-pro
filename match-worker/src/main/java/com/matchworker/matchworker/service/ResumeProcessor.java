@@ -7,9 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,9 +19,6 @@ import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModelFactory;
 
 @Service
 public class ResumeProcessor {
-
-    @Autowired
-    private RedisTemplate<String, String> redisTemplate;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -47,27 +42,6 @@ public class ResumeProcessor {
 
     private String toPgVector(float[] vector) {
         return Arrays.toString(vector);
-    }
-
-    @Scheduled(fixedDelay = 1000)
-    public void consumeJob() {
-        String jobId = redisTemplate.opsForList().rightPop("bull:resume-queue:wait");
-
-        if (jobId != null) {
-            System.out.println("Received job ID: " + jobId);
-            var jobMap = redisTemplate.opsForHash()
-                    .entries("bull:resume-queue:" + jobId);
-            System.out.println("Raw job data: " + jobMap);
-            Object dataObj = jobMap.get("data");
-
-            if (dataObj == null) {
-                System.out.println("⚠️ No data found in job");
-                return;
-            }
-
-            String data = dataObj.toString();
-            processMatch(data);
-        }
     }
 
     private String extractFromPdf(String filePath) {
@@ -143,26 +117,7 @@ public class ResumeProcessor {
         return Math.min(score, 100.0);
     }
 
-    private String generateAgenticFeedback(double finalScore, double keywordScore, double semanticPercent) {
-        StringBuilder feedback = new StringBuilder();
-
-        if (finalScore > 85) {
-            feedback.append("Top-tier match. ");
-        } else if (keywordScore > 80 && semanticPercent < 60) {
-            feedback.append("Candidate has the right buzzwords, but the professional context (Semantic Fit) is weak. ");
-        } else if (semanticPercent > 80 && keywordScore < 50) {
-            feedback.append(
-                    "Strong conceptual fit, but the resume is missing specific technical keywords found in the JD. ");
-        }
-        if (finalScore < 70) {
-            feedback.append(
-                    "Advice: Bridge the gap by highlighting more experience with Distributed Systems or Cloud infrastructure.");
-        }
-
-        return feedback.toString();
-    }
-
-    private void processMatch(String data) {
+    public void processMatch(String data) {
         String jobId = null;
         String userId = null;
         try {
@@ -205,10 +160,7 @@ public class ResumeProcessor {
 
             double finalScore = (0.7 * semanticPercent) + (0.3 * keywordScore);
 
-            String baseFeedback = generateAgenticFeedback(finalScore, keywordScore, semanticPercent);
             String llmFeedback = groq.generateFeedback(resumeText, jd, finalScore);
-
-            String finalFeedback = baseFeedback + "\n\n" + llmFeedback;
 
             String safeFeedback = llmFeedback;
 
@@ -243,15 +195,18 @@ public class ResumeProcessor {
 
     public void notifyCompletion(String jobId, String userId, double score, String feedback) {
         try {
+            Map<String, Object> feedbackObj = objectMapper.readValue(feedback, Map.class);
+
             Map<String, Object> payload = Map.of(
                     "jobId", jobId,
                     "userId", userId,
                     "status", "COMPLETED",
                     "score", score,
-                    "feedback", feedback);
+                    "feedback", feedbackObj);
 
             String message = objectMapper.writeValueAsString(payload);
 
+            System.out.println("📡 Publishing completion for job: " + jobId);
             stringRedisTemplate.convertAndSend("resume_status_updates", message);
 
         } catch (Exception e) {

@@ -6,9 +6,14 @@ import { MatchGateway } from './match.gateway';
 
 @Module({
   imports: [
-    BullModule.registerQueue({
-      name: 'resume-queue',
-    }),
+    BullModule.registerQueue(
+      {
+        name: 'resume-queue',
+      },
+      {
+        name: 'resume-dlq',
+      },
+    ),
   ],
   controllers: [MatchController],
   providers: [MatchService, MatchGateway],

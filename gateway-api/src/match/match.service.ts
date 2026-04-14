@@ -17,6 +17,18 @@ type MatchHistory = {
   job_id: string;
   score: number;
   created_at: Date;
+  feedback: {
+    strengths: string[];
+    weaknesses: string[];
+    recommendations: string[];
+  };
+};
+
+type MatchHistoryRow = {
+  job_id: string;
+  score: number;
+  created_at: Date;
+  feedback: string | null; // 👈 DB reality
 };
 
 @Injectable()
@@ -35,6 +47,9 @@ export class MatchService {
       database: process.env.DB_NAME,
       password: process.env.DB_PASSWORD,
       port: Number(process.env.DB_PORT),
+      ssl: {
+        rejectUnauthorized: false,
+      },
     });
   }
 
@@ -42,30 +57,45 @@ export class MatchService {
     const jobId = `job_${randomUUID()}`;
     console.log('📦 Queuing job:', jobId, resumeData.resumeUrl);
 
-    await this.resumeQueue.add('analyze-resume', {
-      jobId,
-      resumeUrl: resumeData.resumeUrl,
-      jd: resumeData.jd,
-      userId: resumeData.userId,
-    });
+    await this.resumeQueue.add(
+      'analyze-resume',
+      {
+        jobId,
+        resumeUrl: resumeData.resumeUrl,
+        jd: resumeData.jd,
+        userId: resumeData.userId,
+      },
+      {
+        attempts: 5,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
 
     return { jobId, status: 'QUEUED' };
   }
 
   async getUserHistory(userId: string): Promise<MatchHistory[]> {
     const query = `
-      SELECT job_id, score, created_at
+      SELECT job_id, score, created_at, feedback
       FROM match_results
       WHERE user_id = $1
       ORDER BY created_at DESC
       LIMIT 20
     `;
 
-    const result: QueryResult<MatchHistory> = await this.pool.query(query, [
+    const result: QueryResult<MatchHistoryRow> = await this.pool.query(query, [
       userId,
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return result.rows;
+    return result.rows.map((row) => ({
+      ...row,
+      feedback: row.feedback ? JSON.parse(row.feedback) : null,
+    }));
   }
 }
