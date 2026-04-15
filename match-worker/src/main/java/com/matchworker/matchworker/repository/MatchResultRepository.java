@@ -8,10 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 public interface MatchResultRepository extends JpaRepository<MatchResult, Long> {
-    @Query(value = """
-            SELECT 1 - (CAST(:resumeVec AS vector) <=> CAST(:jdVec AS vector))
-            """, nativeQuery = true)
-    Double calculateSimilarity(@Param("resumeVec") String resumeVec,
-            @Param("jdVec") String jdVec);
+        @Query(value = "SELECT 0.0", nativeQuery = true)
+        Double calculateSimilarity(@Param("resumeVec") String resumeVec,
+                        @Param("jdVec") String jdVec);
 
 }
