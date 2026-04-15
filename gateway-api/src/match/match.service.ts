@@ -21,7 +21,7 @@ type MatchHistory = {
     strengths: string[];
     weaknesses: string[];
     recommendations: string[];
-  };
+  } | null;
 };
 
 type MatchHistoryRow = {
@@ -93,9 +93,37 @@ export class MatchService {
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return result.rows.map((row) => ({
-      ...row,
-      feedback: row.feedback ? JSON.parse(row.feedback) : null,
-    }));
+    return result.rows.map((row) => {
+      let parsedFeedback = null;
+
+      if (row.feedback) {
+        try {
+          // clean markdown if present
+          const cleaned = row.feedback
+            .replace(/```json/g, '')
+            .replace(/```/g, '')
+            .trim();
+
+          // extract JSON safely
+          const start = cleaned.indexOf('{');
+          const end = cleaned.lastIndexOf('}');
+
+          const jsonString =
+            start !== -1 && end !== -1
+              ? cleaned.substring(start, end + 1)
+              : cleaned;
+
+          parsedFeedback = JSON.parse(jsonString);
+        } catch (e: any) {
+          console.log('❌ Feedback parse error:', e.message);
+          parsedFeedback = null; // fallback
+        }
+      }
+
+      return {
+        ...row,
+        feedback: parsedFeedback,
+      };
+    });
   }
 }

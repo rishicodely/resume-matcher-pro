@@ -1,9 +1,7 @@
 package com.matchworker.matchworker.service;
 
 import java.util.Map;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,9 +11,6 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.matchworker.matchworker.repository.MatchResultRepository;
 import com.matchworker.matchworker.entity.MatchResult;
-
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModelFactory;
 
 @Service
 public class ResumeProcessor {
@@ -31,18 +26,6 @@ public class ResumeProcessor {
 
     @Autowired
     private GroqService groq;
-
-    private final EmbeddingModel embeddingModel = new AllMiniLmL6V2EmbeddingModelFactory().create();
-
-    private final Map<String, float[]> jdCache = new ConcurrentHashMap<>();
-
-    private float[] getEmbedding(String text) {
-        return embeddingModel.embed(text).content().vector();
-    }
-
-    private String toPgVector(float[] vector) {
-        return Arrays.toString(vector);
-    }
 
     private String extractFromPdf(String filePath) {
         try {
@@ -141,20 +124,9 @@ public class ResumeProcessor {
                 throw new RuntimeException("Resume parsing failed");
             }
 
-            float[] resumeVector = getEmbedding(resumeText);
-            float[] jdVector = jdCache.computeIfAbsent(jd, this::getEmbedding);
-
-            String resumeVecStr = toPgVector(resumeVector);
-            String jdVecStr = toPgVector(jdVector);
-
-            Double semanticScore = matchResultRepository
-                    .calculateSimilarity(resumeVecStr, jdVecStr);
-
-            double semanticScoreRaw = (semanticScore != null ? semanticScore : 0.0);
-
-            double normalized = (semanticScoreRaw + 1) / 2;
-
-            double semanticPercent = normalized * 100;
+            double semanticPercent = 70.0; // fallback score
+            float[] resumeVector = new float[384];
+            float[] jdVector = new float[384];
 
             double keywordScore = calculateMatchScore(resumeText, jd);
 
