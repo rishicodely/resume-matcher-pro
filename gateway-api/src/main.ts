@@ -8,7 +8,10 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
 
   app.enableCors({
-    origin: 'http://localhost:5173', // Vite dev server
+    origin: [
+      'http://localhost:5173',
+      'https://resume-matcher-c6l3lin53-rishicodelys-projects.vercel.app',
+    ],
     credentials: true,
   });
 
