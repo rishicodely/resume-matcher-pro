@@ -2,14 +2,15 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { MatchModule } from './match/match.module';
 import { RedisSubscriber } from './redis.subscriber';
-
+import Redis from 'ioredis';
+import * as dotenv from 'dotenv';
+dotenv.config();
 @Module({
   imports: [
     BullModule.forRoot({
-      connection: {
-        host: 'localhost',
-        port: 6379,
-      },
+      connection: new Redis(process.env.REDIS_URL!, {
+        tls: {},
+      }),
     }),
     MatchModule,
   ],
