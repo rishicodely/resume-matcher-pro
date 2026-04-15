@@ -5,13 +5,11 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  console.log('🚀 CORS ENABLED');
   app.useGlobalPipes(new ValidationPipe());
 
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'https://resume-matcher-1wtsrc9a2-rishicodelys-projects.vercel.app',
-    ],
+    origin: true,
     credentials: true,
   });
 
