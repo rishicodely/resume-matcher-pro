@@ -10,7 +10,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       // 'http://localhost:5173',
-      'https://resume-matcher-7j20g5ze1-rishicodelys-projects.vercel.app/',
+      'https://resume-matcher-7j20g5ze1-rishicodelys-projects.vercel.app',
     ],
     credentials: true,
   });
