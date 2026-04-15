@@ -1,66 +1,50 @@
 # 🚀 Resume Matcher Pro
 
-An AI-powered resume analysis system built with a **distributed, event-driven architecture** that evaluates resume-job compatibility using semantic embeddings and asynchronous processing.
+An AI-powered resume analysis system built using a **distributed, event-driven architecture** to evaluate resume-job compatibility using **semantic embeddings and cosine similarity**.
 
 ---
 
 ## 🏗️ Architecture
 
-This system follows a **microservices + event-driven architecture** designed for scalability, fault tolerance, and non-blocking processing.
+This system is designed as a **microservices-inspired, event-driven pipeline** to handle compute-heavy resume analysis asynchronously.
 
 ### 🔄 System Flow
 
-1. User uploads resume → stored in **S3**
+1. User uploads resume → stored in **AWS S3**
 2. Frontend sends request to **Gateway API (NestJS)**
 3. API enqueues job into **Redis (BullMQ)**
 4. Worker consumes job asynchronously
-5. Worker fetches resume from **S3**
-6. Worker generates embeddings & similarity score
-7. (Optional) Java ML service enhances feedback
-8. Results stored in **PostgreSQL (Neon)**
+5. Worker calls **Java ML service**
+6. Java service:
+   - extracts text
+   - generates embeddings
+   - computes **cosine similarity**
+   - generates structured feedback
+
+7. Results stored in **PostgreSQL (Neon)**
+8. Worker handles retries & failures via **DLQ**
 9. Frontend fetches match history
 
 ---
 
-### 📊 Architecture Diagram (Text)
+### 📊 Architecture Diagram
 
-```
-                        ┌────────────────────┐
-                        │     Frontend       │
-                        │   (React UI)       │
-                        └─────────┬──────────┘
-                                  │
-                                  ▼
-                        ┌────────────────────┐
-                        │   Gateway API      │
-                        │   (NestJS)         │
-                        └─────────┬──────────┘
-                                  │
-             ┌────────────────────┼────────────────────┐
-             │                    │                    │
-             ▼                    ▼                    ▼
-   ┌────────────────┐   ┌────────────────┐   ┌────────────────┐
-   │      S3        │   │    Redis       │   │   PostgreSQL   │
-   │ (Resume Files) │   │  (BullMQ Queue)│   │   (Neon DB)    │
-   └────────────────┘   └────────────────┘   └────────────────┘
-                                  │
-                                  ▼
-                        ┌────────────────────┐
-                        │     Worker         │
-                        │   (Node.js)        │
-                        └─────────┬──────────┘
-                                  │
-                                  ▼
-                        ┌────────────────────┐
-                        │  ML Service        │
-                        │ (Java - Spring)    │
-                        └─────────┬──────────┘
-                                  │
-                                  ▼
-                        ┌────────────────────┐
-                        │  External AI APIs  │
-                        │ (Groq/OpenRouter)  │
-                        └────────────────────┘
+```text
+Frontend (React)
+        ↓
+Gateway API (NestJS)
+        ↓
+Redis Queue (BullMQ / Upstash)
+        ↓
+Worker (Node.js)
+        ↓
+Java ML Service (Spring Boot)
+        ↓
+AI APIs (Groq / OpenRouter)
+        ↓
+PostgreSQL (Neon)
+
++ S3 (Resume Storage)
 ```
 
 ---
@@ -70,12 +54,12 @@ This system follows a **microservices + event-driven architecture** designed for
 ### Backend
 
 - Node.js (NestJS) – API layer
-- Java (Spring Boot) – ML microservice
+- Java (Spring Boot) – ML processing service
 
 ### Queue & Processing
 
 - Redis (Upstash) – Job queue
-- BullMQ – Background job processing
+- BullMQ – Worker + DLQ handling
 
 ### Storage
 
@@ -84,37 +68,39 @@ This system follows a **microservices + event-driven architecture** designed for
 ### Database
 
 - PostgreSQL (Neon)
-- pgvector – Vector similarity search
+- pgvector – Embedding storage
 
 ### AI / ML
 
+- Embedding-based semantic matching
+- Cosine similarity scoring
 - Groq / OpenRouter APIs
-- Embedding-based semantic scoring
 
 ### Deployment
 
-- Railway – Backend services
-- Neon – Serverless PostgreSQL
-- Upstash – Serverless Redis
+- Railway – API & worker services
+- Neon – Database
+- Upstash – Redis
 - AWS S3 – File storage
 
 ---
 
 ## 🚀 Features
 
-- 📁 Resume upload and storage using S3
-- 🔄 Asynchronous processing via Redis queue
-- 🧠 Semantic similarity scoring using embeddings
-- ⚡ Non-blocking scalable backend architecture
-- 📊 Match score with AI-generated feedback
-- 📜 User-specific match history tracking
-- 🧩 Microservices-ready design (Node + Java separation)
+- 📁 Resume upload & storage via S3
+- 🔄 Asynchronous processing using Redis queues
+- 🧠 Semantic similarity using embeddings + cosine similarity
+- ⚡ Non-blocking backend architecture
+- 📊 AI-generated feedback (strengths, weaknesses, recommendations)
+- 📜 User-specific match history
+- 🧩 Polyglot microservices (Node + Java)
+- ♻️ Dead Letter Queue (DLQ) for failure handling
 
 ---
 
 ## 📂 Project Structure
 
-```
+```text
 resume-matcher-pro/
 ├── gateway-api/        # NestJS API
 ├── match-worker/       # Java ML service
@@ -127,16 +113,14 @@ resume-matcher-pro/
 
 ### POST /match
 
-#### Request
-
 ```json
 {
   "resumeUrl": "https://your-s3-url",
-  "jd": "Frontend Developer with React experience"
+  "jd": "Backend Developer with Node.js experience"
 }
 ```
 
-#### Response
+Response:
 
 ```json
 {
@@ -149,7 +133,7 @@ resume-matcher-pro/
 
 ## 🧪 Local Setup
 
-### 1. Clone Repository
+### 1. Clone repo
 
 ```bash
 git clone https://github.com/your-username/resume-matcher-pro
@@ -158,19 +142,19 @@ cd resume-matcher-pro
 
 ---
 
-### 2. Environment Variables
-
-Create `.env` in `gateway-api`:
+### 2. Setup environment variables
 
 ```env
 DB_URL=
 REDIS_URL=
 GROQ_API_KEY=
+AWS_ACCESS_KEY=
+AWS_SECRET_KEY=
 ```
 
 ---
 
-### 3. Run Services
+### 3. Run services
 
 #### Gateway API
 
@@ -180,15 +164,11 @@ npm install
 npm run start:dev
 ```
 
----
-
 #### Worker
 
 ```bash
 npm run worker
 ```
-
----
 
 #### Java ML Service
 
@@ -201,46 +181,45 @@ cd match-worker
 
 ## 🧠 Design Decisions
 
-- Used **S3** to decouple file storage from compute layer
-- Implemented **Redis queue** for asynchronous job processing
-- Worker architecture ensures API remains non-blocking
-- ML service separated for scalability and flexibility
-- Embeddings used instead of keyword matching for better accuracy
+- Used **event-driven architecture** to handle heavy processing asynchronously
+- Introduced **worker + queue pattern** to avoid blocking API requests
+- Implemented **DLQ** for reliability and retry handling
+- Separated ML logic into **Java service** for scalability and flexibility
+- Used **cosine similarity over embeddings** for semantic matching
+- Stored resumes in **S3** to decouple storage from compute
 
 ---
 
-## ⚠️ Limitations
+## ⚠️ Deployment Note
 
-- Java ML service is memory-intensive on free-tier deployments
-- External AI APIs may face rate limits
-- Authentication system not implemented yet
+- Core system (API, Worker, DB, Redis) is deployable and functional
+- Java ML service is included as a separate microservice
+- Due to memory constraints on free-tier platforms, ML service is best run locally or on higher-memory environments
 
 ---
 
 ## 🚀 Future Improvements
 
-- Add JWT-based authentication
-- Implement real-time job tracking (WebSockets)
+- Add authentication (JWT)
+- Real-time processing updates (WebSockets)
 - Optimize ML service memory usage
-- Improve ranking model accuracy
+- Improve ranking model
 
 ---
 
 ## ✨ Motivation
 
-Built to solve real-world job matching inefficiencies by leveraging **semantic understanding instead of keyword matching**.
+Built to solve resume-job matching using **semantic understanding instead of keyword matching**, with focus on:
 
-Focus was on:
-
-- Scalable backend architecture
-- Distributed systems design
-- Production-ready engineering practices
+- System design
+- Scalability
+- Real-world backend architecture
 
 ---
 
 ## 📌 Author
 
 Rishika Reddy
-Full Stack Developer
+Backend Developer
 
 ---
