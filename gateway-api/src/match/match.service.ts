@@ -28,7 +28,7 @@ type MatchHistoryRow = {
   job_id: string;
   score: number;
   created_at: Date;
-  feedback: string | null; // 👈 DB reality
+  feedback: string | null;
 };
 
 @Injectable()

@@ -10,7 +10,9 @@ type ResumeEvent = {
 
 @Injectable()
 export class RedisSubscriber implements OnModuleInit {
-  private subscriber = new Redis();
+  private subscriber = new Redis(process.env.REDIS_URL!, {
+    tls: {},
+  });
   constructor(private readonly matchGateway: MatchGateway) {}
 
   async onModuleInit() {

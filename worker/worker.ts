@@ -1,12 +1,14 @@
-import { Worker, Job, Queue } from 'bullmq';
-import IORedis from 'ioredis';
-import axios from 'axios';
+import { Worker, Job, Queue } from "bullmq";
+import Redis, * as IORedis from "ioredis";
+import axios from "axios";
+import * as dotenv from "dotenv";
+dotenv.config();
 
-const connection = new IORedis({
+const connection = new Redis(process.env.REDIS_URL!, {
   maxRetriesPerRequest: null,
 });
 
-const dlq = new Queue('resume-dlq', { connection });
+const dlq = new Queue("resume-dlq", { connection });
 
 interface MatchJobData {
   jobId: string;
@@ -16,25 +18,25 @@ interface MatchJobData {
 }
 
 const worker = new Worker(
-  'resume-queue',
+  "resume-queue",
   async (job: Job<MatchJobData>) => {
     const { jobId, resumeUrl, jd, userId } = job.data;
 
-    console.log('🔍 Processing job:', jobId);
+    console.log("🔍 Processing job:", jobId);
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      await axios.post<void>('http://localhost:8080/process', {
+      await axios.post<void>(`${process.env.JAVA_API_URL}/process`, {
         jobId,
         resumeUrl,
         jd,
         userId,
       });
 
-      console.log('✅ Job processed:', jobId);
+      console.log("✅ Job processed:", jobId);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        console.error('❌ Error:', err.message);
+        console.error("❌ Error:", err.message);
       }
       throw err;
     }
@@ -42,12 +44,12 @@ const worker = new Worker(
   { connection, concurrency: 1 },
 );
 
-worker.on('failed', (job, err) => {
+worker.on("failed", (job, err) => {
   void (async () => {
     if (!job) return;
 
     if (job.attemptsMade >= (job.opts.attempts ?? 1)) {
-      await dlq.add('failed-job', {
+      await dlq.add("failed-job", {
         originalJobId: job.id,
         data: job.data,
         error: err.message,
