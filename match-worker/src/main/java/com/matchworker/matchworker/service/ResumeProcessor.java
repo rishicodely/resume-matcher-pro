@@ -140,8 +140,6 @@ public class ResumeProcessor {
             result.setJobId(jobId);
             result.setUserId(userId);
             result.setStatus(MatchResult.MatchStatus.SUCCESS);
-            result.setResumeEmbedding(resumeVector);
-            result.setJdEmbedding(jdVector);
             result.setScore(finalScore);
             result.setFeedback(safeFeedback);
 
