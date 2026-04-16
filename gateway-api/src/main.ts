@@ -9,7 +9,11 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
 
   app.enableCors({
-    origin: true,
+    origin: [
+      'https://resume-matcher-1wtsrc9a2-rishicodelys-projects.vercel.app',
+      'http://localhost:5173', // for local dev
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 

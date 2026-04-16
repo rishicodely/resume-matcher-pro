@@ -56,6 +56,11 @@ export const FileMatcher = () => {
 
     const { url, fileUrl } = await res.json();
 
+    if (!url) {
+      console.error("Failed to generate S3 Presigned URL");
+      throw new Error("Presigned URL generation failed");
+    }
+
     await fetch(url, {
       method: "PUT",
       body: file,
@@ -63,7 +68,6 @@ export const FileMatcher = () => {
         "Content-Type": file.type,
       },
     });
-
     return fileUrl;
   };
 
