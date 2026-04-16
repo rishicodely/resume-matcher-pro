@@ -105,6 +105,10 @@ The system is architected as a **polyglot microservices pipeline** to decouple I
 - **Why Redis Pub/Sub?** To bridge the gap between the stateless Java worker and the persistent WebSocket connection held by the Gateway.
 
 ---
+## Live Demo
+https://resume-matcher-pro-ten.vercel.app/
+
+---
 
 ## 📌 Author
 
