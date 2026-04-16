@@ -1,5 +1,7 @@
 import { io } from "socket.io-client";
 
-export const socket = io(import.meta.env.VITE_API_URL, {
+const baseApiUrl = import.meta.env.VITE_API_URL.replace(/\/$/, "");
+
+export const socket = io(baseApiUrl, {
   autoConnect: true,
 });

@@ -31,6 +31,8 @@ export const FileMatcher = () => {
   const [result, setResult] = useState<MatchResult | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
+  const baseApiUrl = import.meta.env.VITE_API_URL.replace(/\/$/, "");
+
   useMatchSocket(jobId, (data) => {
     setResult(data);
     setStatus("COMPLETED");
@@ -40,19 +42,16 @@ export const FileMatcher = () => {
   const uploadToS3 = async (file: File) => {
     const filename = `${Date.now()}-${file.name}`;
 
-    const res = await fetch(
-      `${import.meta.env.VITE_API_URL}/match/upload-url`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          filename,
-          type: file.type,
-        }),
+    const res = await fetch(`${baseApiUrl}/match/upload-url`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        filename,
+        type: file.type,
+      }),
+    });
 
     const { url, fileUrl } = await res.json();
 
