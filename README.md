@@ -1,225 +1,75 @@
 # 🚀 Resume Matcher Pro
 
-An AI-powered resume analysis system built using a **distributed, event-driven architecture** to evaluate resume-job compatibility using **semantic embeddings and cosine similarity**.
+An AI-powered resume analysis system built using a **distributed, event-driven architecture**. This platform evaluates resume-job compatibility using **semantic embeddings, cosine similarity, and weighted keyword matching**.
 
 ---
 
 ## 🏗️ Architecture
 
-This system is designed as a **microservices-inspired, event-driven pipeline** to handle compute-heavy resume analysis asynchronously.
+The system is architected as a **polyglot microservices pipeline** to decouple I/O-heavy API tasks from compute-heavy ML processing.
 
 ### 🔄 System Flow
 
-1. User uploads resume → stored in **AWS S3**
-2. Frontend sends request to **Gateway API (NestJS)**
-3. API enqueues job into **Redis (BullMQ)**
-4. Worker consumes job asynchronously
-5. Worker calls **Java ML service**
-6. Java service:
-   - extracts text
-   - generates embeddings
-   - computes **cosine similarity**
-   - generates structured feedback
-
-7. Results stored in **PostgreSQL (Neon)**
-8. Worker handles retries & failures via **DLQ**
-9. Frontend fetches match history
-
----
+1.  **Storage**: User uploads a resume; the frontend utilizes an S3 pre-signed URL to store the file in **AWS S3**, offloading I/O from the server.
+2.  **Ingestion**: The **Gateway API (NestJS)** receives the metadata and enqueues a job into **Redis (BullMQ)**.
+3.  **Orchestration**: A dedicated **Node.js Worker** consumes the job, managing retries and **Dead Letter Queues (DLQ)** for high reliability.
+4.  **Compute**: The Worker triggers the **Java ML service** via **Railway Internal Networking** (`http://match-worker:8080`).
+5.  **Intelligence**: The Java service (Spring Boot) performs:
+    - **Text Extraction**: Leveraging Apache Tika.
+    - **Hybrid Scoring**: A proprietary algorithm blending weighted keyword analysis (30%) with semantic vector similarity (70%).
+    - **LLM Feedback**: Generating strengths and weaknesses via Groq/OpenRouter.
+6.  **Persistence**: Results are stored in **PostgreSQL (Neon)** using `pgvector`.
+7.  **Real-time Update**: The Java service publishes to **Redis Pub/Sub**, which the Gateway picks up to notify the frontend via **WebSockets**.
 
 ### 📊 Architecture Diagram
 
-```text
 Frontend (React)
-        ↓
-Gateway API (NestJS)
-        ↓
+↓ (Pre-signed URL)
+AWS S3 (Storage)
+↓
+Gateway API (NestJS) ↔ Redis Pub/Sub ↔ WebSockets
+↓ (Job Producer)
 Redis Queue (BullMQ / Upstash)
-        ↓
+↓ (Job Consumer)
 Worker (Node.js)
-        ↓
+↓ (Internal VPC: http://match-worker:8080)
 Java ML Service (Spring Boot)
-        ↓
-AI APIs (Groq / OpenRouter)
-        ↓
-PostgreSQL (Neon)
-
-+ S3 (Resume Storage)
-```
+↓
+PostgreSQL (Neon + pgvector)
 
 ---
 
 ## ⚙️ Tech Stack
 
-### Backend
-
-- Node.js (NestJS) – API layer
-- Java (Spring Boot) – ML processing service
-
-### Queue & Processing
-
-- Redis (Upstash) – Job queue
-- BullMQ – Worker + DLQ handling
-
-### Storage
-
-- AWS S3 – Resume file storage
-
-### Database
-
-- PostgreSQL (Neon)
-- pgvector – Embedding storage
-
-### AI / ML
-
-- Embedding-based semantic matching
-- Cosine similarity scoring
-- Groq / OpenRouter APIs
-
-### Deployment
-
-- Railway – API & worker services
-- Neon – Database
-- Upstash – Redis
-- AWS S3 – File storage
+- **Backend**: Node.js (NestJS), Java 17 (Spring Boot).
+- **Queue**: Redis (Upstash) + BullMQ.
+- **Storage**: AWS S3.
+- **Database**: PostgreSQL (Neon) + `pgvector`.
+- **AI / ML**: Groq Cloud (Llama 3.1), LangChain4j, Apache Tika.
+- **Deployment**: Railway (Services), Vercel (Frontend).
 
 ---
 
-## 🚀 Features
+## 🚀 Key Engineering Features
 
-- 📁 Resume upload & storage via S3
-- 🔄 Asynchronous processing using Redis queues
-- 🧠 Semantic similarity using embeddings + cosine similarity
-- ⚡ Non-blocking backend architecture
-- 📊 AI-generated feedback (strengths, weaknesses, recommendations)
-- 📜 User-specific match history
-- 🧩 Polyglot microservices (Node + Java)
-- ♻️ Dead Letter Queue (DLQ) for failure handling
-
----
-
-## 📂 Project Structure
-
-```text
-resume-matcher-pro/
-├── gateway-api/        # NestJS API
-├── match-worker/       # Java ML service
-├── dashboard-ui/       # Frontend
-```
-
----
-
-## 🔌 API Example
-
-### POST /match
-
-```json
-{
-  "resumeUrl": "https://your-s3-url",
-  "jd": "Backend Developer with Node.js experience"
-}
-```
-
-Response:
-
-```json
-{
-  "jobId": "job_123",
-  "status": "QUEUED"
-}
-```
-
----
-
-## 🧪 Local Setup
-
-### 1. Clone repo
-
-```bash
-git clone https://github.com/your-username/resume-matcher-pro
-cd resume-matcher-pro
-```
-
----
-
-### 2. Setup environment variables
-
-```env
-DB_URL=
-REDIS_URL=
-GROQ_API_KEY=
-AWS_ACCESS_KEY=
-AWS_SECRET_KEY=
-```
-
----
-
-### 3. Run services
-
-#### Gateway API
-
-```bash
-cd gateway-api
-npm install
-npm run start:dev
-```
-
-#### Worker
-
-```bash
-npm run worker
-```
-
-#### Java ML Service
-
-```bash
-cd match-worker
-./mvnw spring-boot:run
-```
+- **Hybrid Matching Engine**: Moves beyond simple keyword search by combining deterministic parsing with semantic vector embeddings.
+- **Cloud-Native Resiliency**: Implemented secure **TLS/SSL handshakes** for Upstash Redis and Neon DB, alongside exponential backoff for LLM API rate-limiting.
+- **Non-blocking I/O**: The user interface remains responsive during the 10-15 second analysis phase thanks to the async worker pattern.
+- **Internal VPC Networking**: Utilizes private service-to-service communication to reduce latency and improve security.
 
 ---
 
 ## 🧠 Design Decisions
 
-- Used **event-driven architecture** to handle heavy processing asynchronously
-- Introduced **worker + queue pattern** to avoid blocking API requests
-- Implemented **DLQ** for reliability and retry handling
-- Separated ML logic into **Java service** for scalability and flexibility
-- Used **cosine similarity over embeddings** for semantic matching
-- Stored resumes in **S3** to decouple storage from compute
-
----
-
-## ⚠️ Deployment Note
-
-- Core system (API, Worker, DB, Redis) is deployable and functional
-- Java ML service is included as a separate microservice
-- Due to memory constraints on free-tier platforms, ML service is best run locally or on higher-memory environments
-
----
-
-## 🚀 Future Improvements
-
-- Add authentication (JWT)
-- Real-time processing updates (WebSockets)
-- Optimize ML service memory usage
-- Improve ranking model
-
----
-
-## ✨ Motivation
-
-Built to solve resume-job matching using **semantic understanding instead of keyword matching**, with focus on:
-
-- System design
-- Scalability
-- Real-world backend architecture
+- **Why Polyglot?** Node.js excels at high-concurrency gateway orchestration, while Java provides a more robust ecosystem for PDF processing (Tika) and ML integrations.
+- **Why S3 Pre-signed URLs?** To allow the client to upload large files directly to storage, preventing the Gateway API from becoming a bottleneck.
+- **Why Redis Pub/Sub?** To bridge the gap between the stateless Java worker and the persistent WebSocket connection held by the Gateway.
 
 ---
 
 ## 📌 Author
 
-Rishika Reddy
-Backend Developer
+**Rishika Reddy**
+Backend Developer | Distributed Systems Enthusiast
 
 ---
