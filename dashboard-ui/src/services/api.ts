@@ -12,8 +12,10 @@ export const createMatchJob = async (payload: {
 };
 
 export const getHistory = async (userId: string) => {
-  const res = await fetch(
-    `${import.meta.env.VITE_API_URL}/match/history/${userId}`,
-  );
+  // Clean the URL to ensure no trailing slash
+  const baseApiUrl = import.meta.env.VITE_API_URL.replace(/\/$/, "");
+
+  // Use it without a leading slash in the path
+  const res = await fetch(`${baseApiUrl}/match/history/${userId}`);
   return res.json();
 };
